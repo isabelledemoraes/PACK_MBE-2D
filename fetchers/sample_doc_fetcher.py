@@ -52,7 +52,6 @@ import subprocess
 import sys
 import tempfile
 import zipfile
-from dataclasses import dataclass, field
 from pathlib import Path
 from xml.etree import ElementTree as ET
 
@@ -80,22 +79,28 @@ class ExtractionUnavailable(RuntimeError):
     """Nothing on this machine can read this file."""
 
 
-@dataclass
 class Sheet:
-    """One sheet, read but not yet rendered."""
+    """One sheet, read but not yet rendered.
 
-    #: The header table: rows -> cells -> paragraphs. Empty when the sheet
-    #: does not open with a table.
-    header: list[list[list[str]]] = field(default_factory=list)
-    #: Everything after the header, one paragraph per line, with a placeholder
-    #: (see `_placeholder`) wherever a picture stood.
-    body: str = ""
-    #: The embedded pictures, in the order they appear: (suffix, bytes).
-    images: list[tuple[str, bytes]] = field(default_factory=list)
-    #: The yellow fragments that were removed.
-    dropped: list[str] = field(default_factory=list)
-    #: Something the reader of the sheet must be told (a degraded conversion).
-    warning: str = ""
+    A plain class and NOT a dataclass: `pack_kit.learn` loads this file with
+    `exec_module` without registering it in `sys.modules`, and `@dataclass`
+    looks its own module up there — the import then fails with "'NoneType'
+    object has no attribute '__dict__'" and not one sheet is read.
+    """
+
+    def __init__(self, header: list | None = None, body: str = "", warning: str = ""):
+        #: The header table: rows -> cells -> paragraphs. Empty when the sheet
+        #: does not open with a table.
+        self.header: list[list[list[str]]] = header or []
+        #: Everything after the header, one paragraph per line, with a
+        #: placeholder (see `_placeholder`) wherever a picture stood.
+        self.body = body
+        #: The embedded pictures, in the order they appear: (suffix, bytes).
+        self.images: list[tuple[str, bytes]] = []
+        #: The yellow fragments that were removed.
+        self.dropped: list[str] = []
+        #: Something the reader of the sheet must be told (a degraded conversion).
+        self.warning = warning
 
 
 # ---------------------------------------------------------------------------
