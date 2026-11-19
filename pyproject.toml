@@ -1,0 +1,39 @@
+# sample_doc_mbe pack — the Python ENVIRONMENT it runs in, and nothing else.
+#
+#     uv sync          # in this directory: creates .venv/ with everything below
+#
+# The pack itself — its name, version, description — is declared in
+# config.yaml (`pack:` block, and the first paragraph of prompts/lead.md), where
+# pack-kit reads it. That is why `version` below is "0" and stays "0": this file
+# is not a second manifest, it is the list of libraries.
+#
+# learn.sh, serve.sh and pack-kit's runner find .venv/ here by themselves.
+
+[project]
+name = "sample_doc_mbe-pack"
+version = "0"
+requires-python = ">=3.11,<3.14"
+
+# What the USER's agent runs (config.yaml) — and therefore what
+# `python -m pack_kit.publish` pins and ships. A library a tool in tools/
+# imports goes HERE: the builder adds it with `add_dependency`, which asks you
+# first. A library imported but not listed is one the published pack will not
+# have.
+dependencies = [
+    "pack-kit[a2a] @ git+https://gitlab.com/l_sim/ia_tools/pack-kit.git@v0.7.0rc8",
+]
+
+# What only the MAINTAINER runs: the curator and its builder, learn.sh, the
+# memory console. Installed by `uv sync` here, never published.
+[dependency-groups]
+maintain = [
+    "pack-kit[maintainer] @ git+https://gitlab.com/l_sim/ia_tools/pack-kit.git@v0.7.0rc8",
+]
+
+[tool.uv]
+# An environment, not a library: nothing here is built or installed as a package.
+package = false
+default-groups = ["maintain"]
+# To take a NEWER brick than pack-kit names (say aom-ingest from a tag pack-kit
+# does not pin yet), state it here — one line replaces every request for it:
+#   override-dependencies = ["aom-ingest @ git+https://gitlab.com/l_sim/ia_tools/aom/aom_ingest.git@v0.2.0"]

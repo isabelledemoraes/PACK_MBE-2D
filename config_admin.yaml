@@ -1,0 +1,79 @@
+# Sample DOC MBE pack — the MAINTAINER's agent.
+#
+# Never loaded by use_pack: pack-kit reads config.yaml and only config.yaml, so a
+# user's conversation cannot reach any of this. Launched by hand:
+#
+#     uv run agent-slapsci -c config_admin.yaml --terminal
+#
+# What it is FOR, and what it is not:
+#
+#   learn.sh                 bulk ingestion of the sources DECLARED in
+#                            sources.yaml — deterministic, one stateless call per
+#                            page, no agent. Use it for the routine.
+#   this agent               EXPLORATION. "Go and look at this page, tell me what
+#                            is on it and whether it is worth declaring." "Why is
+#                            X missing from memory?" "Purge that source, it has
+#                            moved." Judgement, not volume.
+#   pack_kit.serve           the web UI: inspect the graph, arbitrate pending
+#                            merges, review dead letters, inject by hand.
+#
+# Do NOT use this agent to ingest a whole site. It was tried, and an agent told
+# to "learn this documentation" crawls, reads one file, and writes a single
+# summary of its own making: one memory from a 41 KB page. That is what learn.sh
+# exists for.
+
+agents:
+
+  sample_doc_mbe_curator:
+    provider: cea_mistral
+    model: mistralai-medium
+    prompt_file: "{here}/prompts/lead.md"
+    max_history_messages: 40
+    model_params:
+      temperature: 0.2
+      mixtral_api_url: "https://maia-chat.intra.cea.fr"
+
+
+    tools:
+      # `web` is granted HERE and nowhere else in the pack. It reads the network,
+      # which is a different authority from reading the sandbox, and it is the
+      # expensive one. `search` comes with it: crawl_site returns an INDEX, not
+      # the pages, so without search a crawl is unusable.
+      builtin: [web, search, files]
+      native:
+        - file: "{module:memory_tools}"
+          # The full surface, including the destructive ones. purge_source is
+          # what makes re-learning possible: a page that changed must have its
+          # old memories dropped, or the graph asserts the old and the new facts
+          # side by side and nothing flags the contradiction.
+          functions: [query_memory, add_text, add_file, consolidate_memories,
+                      purge_source, run_coreference]
+          env:
+            MEMORY_DB: "{here}/memory/sample_doc_mbe.db"
+            MEMORY_ONTOLOGY: "{here}/ontology/schema.ttl"
+            MEMORY_PROVIDER: cea_mistral
+            MEMORY_API_URL: "https://maia-chat.intra.cea.fr"
+            MEMORY_MODEL: mistralai-small
+            MEMORY_EXTRACTION_PASSES: "2"
+            # Per pack, decided by the shape of the domain — and it must match
+            # config_admin.yaml, or the graph gains two incompatible shapes.
+            # nary when a fact ties several things together in one context;
+            # binary when facts are naturally pairwise.
+            MEMORY_TRIPLET_MODE: nary
+            MEMORY_AUTO_CONSOLIDATE: "false"
+            MEMORY_COREFERENCE: "false"   # scheduled: ./learn.sh --coreference
+            MEMORY_QUERY_MODE: classic
+
+
+        - file: '{here}/mytools/raman/raman_peak_fit.py'
+          functions: [analyse_raman_folder]
+
+      options:
+        show_tool_calls: true
+        max_tool_iterations: 40
+        workdir: "{here}/sandbox"
+
+
+pool:
+  entry_agent: sample_doc_mbe_curator
+  max_depth: 1

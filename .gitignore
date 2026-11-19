@@ -1,0 +1,6 @@
+# Runtime state: regenerated, never versioned.
+memory/
+knowledge/
+sandbox/
+# Its environment, rebuilt by `uv sync` from pyproject.toml.
+.venv/

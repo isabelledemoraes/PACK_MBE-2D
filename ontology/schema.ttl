@@ -1,0 +1,447 @@
+# =============================================================
+#  schema.ttl — SAMPLE GROWTH LOGS PACK
+#  Domain ontology for MBE epitaxial growth sheets.
+#  UNINSTANTIATED, except the two enumerations of §4.
+#
+#  Consumed by always-on-memory (--ontology) and by
+#  nary_extractor, which DERIVES ITS FRAMES FROM rdfs:domain:
+#    - a class that is the domain of at least one property
+#      becomes a PIVOT the LLM may emit as an n-ary situation;
+#    - a class that is never a domain is a LEAF it merely
+#      names, and whose canonical IRI is the join point.
+#  The shape of this schema therefore decides what can be
+#  extracted at all. Adding one rdfs:domain turns a leaf into a
+#  frame the model will try to fill.
+#
+#  ---------------------------------------------------------
+#  WHY nary AND NOT binary
+#
+#  One line of a sheet is one situation with six roles:
+#
+#      GeSe cell / 490°C – 6.0e-9 mbar / T1 = 29 min – 3 ML
+#
+#  In binary mode that becomes `GeSe cell -> 490`, `GeSe cell
+#  -> 6.0e-9`, `T1 -> 29`, and the fact that these four numbers
+#  belong to ONE deposition of ONE sample is gone. The next
+#  sheet deposits the same cell at 510°C, and the two readings
+#  merge on the cell node into a contradiction nobody wrote.
+#  MEMORY_TRIPLET_MODE is `nary` in BOTH configs; changing it
+#  means re-ingesting everything.
+#
+#  ---------------------------------------------------------
+#  DESCRIPTIVE ONLY — and that is a decision, not an omission.
+#
+#  The pack template ships a prescriptive family (Recipe,
+#  Prescription: "this case REQUIRES that value"). There is
+#  none here. A sample sheet records what an operator DID on
+#  one afternoon; it prescribes nothing, and a schema offering
+#  a Prescription frame would have the extractor turn one
+#  operator's choice into a rule for the laboratory. What is
+#  recurrent practice is found by COMPARING growths — which is
+#  a query over these records, and stays a query.
+#
+#  An unreachable pivot is not neutral: it is a frame the
+#  extractor keeps offering the model. If prescriptions are
+#  ever wanted here, they come from a different source (a
+#  process note, a paper), never from these sheets.
+#
+#  ---------------------------------------------------------
+#  FOUR DESIGN RULES, carried over from the packs that work
+#
+#  R1. THE SHEETS ARE DATA, NOT SCHEMA.
+#      GeSe, ZnSe, Sn, the ZnO substrate, the molyblock "Te
+#      new", the operator Isabelle: every one is an INSTANCE
+#      of a class below. A new material or a new operator
+#      never edits this file.
+#
+#  R2. CATEGORICAL -> NODE; NUMERIC -> LITERAL.
+#      A cell, a material, a substrate, a RHEED quality must
+#      be nodes: one wants "every growth on ZnO", "every
+#      deposition that came out streaky". 490 must not: one
+#      node per temperature blows the graph up, and a SPARQL
+#      FILTER does the job.
+#
+#  R3. THE UNIT LIVES ON THE PROPERTY, NOT ON THE VALUE.
+#      Every numeric property below states its unit in its
+#      own definition, once. The sheets leave units implicit
+#      ("490°C – 6.0e-9", "T2 = 56") and an implicit unit is
+#      how a factor of sixty gets in. ONE exception, §3:
+#      durations are written in minutes or in seconds
+#      depending on the operator and the step, so a duration
+#      carries its unit as a node.
+#
+#  R4. CHRONOLOGY IS THE ONLY ORDERING THERE IS.
+#      These sheets have no timestamps. A step is placed by
+#      sd:stepIndex and sd:follows, both of which mean "as
+#      written on the sheet" and nothing stronger. Real times
+#      will come from the machine-state CSV, as a SECOND
+#      source with its own reading — never by inventing them
+#      here.
+# =============================================================
+
+@prefix sd:   <https://example.org/onto/pack/sample_doc#> .
+@prefix owl:  <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+
+<https://example.org/onto/pack/sample_doc> a owl:Ontology ;
+  owl:versionInfo "0.1" ;
+  rdfs:label "Sample growth logs pack — domain schema" ;
+  rdfs:comment """Deliberately axiom-poor: no cardinality, and a single
+  disjointness (§2) which exists to stop one recurring confusion rather than to
+  reason. A strict reasoner would conflict with concepts created at runtime.
+  Alignment with the ag: core happens in the memory layer, never here: mixing
+  the strata would make this schema unusable by the extractor."""@en .
+
+
+# =============================================================
+# §1  LEAVES — named by the LLM, shared, deduplicated.
+#     These are the join points of the graph, and the terms a
+#     question arrives on. NONE is instantiated here: the
+#     sheets fill them.
+# =============================================================
+
+sd:Sample a owl:Class ;
+  rdfs:label "Sample" ;
+  rdfs:comment """The grown object, identified by its number as written on the
+  sheet — "1-0764". A leaf and not a frame: everything one wants to say about a
+  sample is said about its GROWTH, which is what has a date, an operator and
+  steps. Keeping the sample a bare identity is what lets a second growth on the
+  same piece, or a later characterisation, attach to it without rewriting
+  anything."""@en .
+
+sd:Stack a owl:Class ;
+  rdfs:label "Layer stack" ;
+  rdfs:comment """The heterostructure as the sheet's description writes it —
+  "GeSe//Ni/ZnO(Ta/Al)", "GeSe//Gr/Graphen". A node because it is the term a
+  question arrives on ("every GeSe on graphene"). Kept VERBATIM: the slashes and
+  the doubled slash carry the epitaxial relation, and a normalised spelling
+  loses it."""@en .
+
+sd:Substrate a owl:Class ;
+  rdfs:label "Substrate" ;
+  rdfs:comment """What the layer was grown on: ZnO(Ba/Ni), Graphen/SiC doped,
+  mica, sapphire. The primary discriminant of a growth's outcome — what works on
+  graphene does not work on ZnO, and that is exactly where a result read across
+  substrates becomes a wrong answer."""@en .
+
+sd:Material a owl:Class ;
+  rdfs:label "Material or species" ;
+  rdfs:comment """What a cell delivers or a layer is made of, in the sheets'
+  own abbreviations: Se, Sn, Zn, Ge, SnSe, ZnSe, GeSe. Both the element and the
+  compound are instances of this one class — a sheet writes either, and forcing
+  a distinction the operator did not make would split the graph in two."""@en .
+
+sd:Cell a owl:Class ;
+  rdfs:label "Effusion cell" ;
+  rdfs:comment """A source of the machine, named on the sheet by its charge —
+  "GeSe cell", "Se cell". A node in its own right and not merely the material it
+  holds: the cell has its own temperature and its own pressure reading, and two
+  cells may hold the same species."""@en .
+
+sd:Molyblock a owl:Class ;
+  rdfs:label "Molyblock" ;
+  rdfs:comment """The sample holder, named on the sheet — "Te new", "Se V". Its
+  identity matters because it is reused across growths and carries contamination
+  with it; that is a question one wants to be able to ask."""@en .
+
+sd:Operator a owl:Class ;
+  rdfs:label "Operator" ;
+  rdfs:comment "Who ran the growth, by the name written on the sheet."@en .
+
+sd:RheedQuality a owl:Class ;
+  rdfs:label "RHEED quality" ;
+  rdfs:comment """The operator's own verdict on the diffraction pattern: good,
+  streaky, spotty, 3D, diffuse, no pattern. A node, so one can ask "which growths
+  came out spotty and what did they have in common". Never invent a scale: what
+  the sheet writes is what is recorded, and see extraction_guide.md for the
+  canonical spellings."""@en .
+
+sd:Unit a owl:Class ;
+  rdfs:label "Unit" ;
+  rdfs:comment """Only ever used for durations (R3, §3). Every other numeric
+  property carries its unit in its own definition; a unit node hanging off a
+  temperature would be the third place a unit is stated."""@en .
+
+
+# --- Literal artifacts: POINTERS to non-compressible content.
+#     Immutable. Never consolidated, never edited.
+sd:Artifact a owl:Class ;
+  rdfs:label "Literal artifact" ;
+  rdfs:comment "Excluded from consolidation BY CONSTRUCTION."@en .
+
+sd:Command a owl:Class ; rdfs:subClassOf sd:Artifact ;
+  rdfs:label "Machine control command" ;
+  rdfs:comment """A control line copied into the sheet verbatim —
+  power_ramp("Substrate", 38, 30), hold(60), temperature_ramp("Substrate", 250,
+  10). It is the executable trace of the step and the closest thing these sheets
+  hold to a script: kept CHARACTER FOR CHARACTER, arguments and quotes included.
+  A paraphrased command is a broken command, and here it is also the only record
+  of which of two ramps was actually sent."""@en .
+
+
+# =============================================================
+# §2  DESCRIPTIVE PIVOTS — what a run DID.
+#     This is the whole of this schema; see the header on why
+#     there is no prescriptive family.
+# =============================================================
+
+sd:Growth a owl:Class ;
+  rdfs:label "Growth" ;
+  rdfs:comment """One sample sheet: one sample grown on one afternoon, by one
+  operator, on one substrate, mounted on one molyblock. The frame everything else
+  hangs from."""@en .
+
+sd:ofSample        a owl:ObjectProperty ; rdfs:domain sd:Growth ; rdfs:range sd:Sample .
+sd:grewStack       a owl:ObjectProperty ; rdfs:domain sd:Growth ; rdfs:range sd:Stack .
+sd:onSubstrate     a owl:ObjectProperty ; rdfs:domain sd:Growth ; rdfs:range sd:Substrate .
+sd:mountedOn       a owl:ObjectProperty ; rdfs:domain sd:Growth ; rdfs:range sd:Molyblock .
+sd:performedBy     a owl:ObjectProperty ; rdfs:domain sd:Growth ; rdfs:range sd:Operator .
+sd:hasStep         a owl:ObjectProperty ; rdfs:domain sd:Growth ; rdfs:range sd:GrowthStep .
+
+sd:growthDate a owl:DatatypeProperty ; rdfs:domain sd:Growth ; rdfs:range xsd:string ;
+  rdfs:comment """The date on the sheet, kept as written — the sheets use
+  dd/mm/yyyy. A string and not xsd:date on purpose: half-written dates exist, and
+  a parser that guesses turns 06/07 into a day nobody worked."""@en .
+
+sd:substrateSize a owl:DatatypeProperty ; rdfs:domain sd:Growth ; rdfs:range xsd:string ;
+  rdfs:comment """In MILLIMETRES, as written — "15*15", "5*5". A string because
+  it is two numbers, and splitting them here would lose which is which on a
+  non-square piece."""@en .
+
+sd:basePressure a owl:DatatypeProperty ; rdfs:domain sd:Growth ; rdfs:range xsd:decimal ;
+  rdfs:comment """Chamber base pressure before growth, in MBAR — the sheets'
+  `Pch`. Typically 1e-10 to 1e-9; it is the number that says whether the chamber
+  was in condition, and it is compared across growths."""@en .
+
+
+sd:GrowthStep a owl:Class ;
+  rdfs:label "Growth step" ;
+  rdfs:comment """One operation of the growth: a ramp, a hold, a stabilisation,
+  a deposition, an annealing, a cooling. THE central frame of this pack, and the
+  reason it extracts n-ary: a deposition names a cell, its temperature, its
+  partial pressure, its duration and the thickness obtained, and those five
+  numbers are one fact. A step may be written over several consecutive lines of
+  the sheet — that is still ONE step."""@en .
+
+sd:partOfGrowth    a owl:ObjectProperty ; rdfs:domain sd:GrowthStep ; rdfs:range sd:Growth .
+sd:hasKind         a owl:ObjectProperty ; rdfs:domain sd:GrowthStep ; rdfs:range sd:StepKind .
+sd:depositsMaterial a owl:ObjectProperty ; rdfs:domain sd:GrowthStep ; rdfs:range sd:Material .
+sd:usesCell        a owl:ObjectProperty ; rdfs:domain sd:GrowthStep ; rdfs:range sd:Cell .
+sd:hasCommand      a owl:ObjectProperty ; rdfs:domain sd:GrowthStep ; rdfs:range sd:Command .
+sd:observedRheed   a owl:ObjectProperty ; rdfs:domain sd:GrowthStep ; rdfs:range sd:RheedObservation .
+
+sd:follows a owl:ObjectProperty ; rdfs:domain sd:GrowthStep ; rdfs:range sd:GrowthStep ;
+  rdfs:comment """The step this one comes after ON THE SHEET (R4). It means
+  "written below", not "measured later": these sheets carry no clock, and the
+  gap between two steps is unknown unless one of them states a duration."""@en .
+
+sd:stepIndex a owl:DatatypeProperty ; rdfs:domain sd:GrowthStep ; rdfs:range xsd:integer ;
+  rdfs:comment """Position in the sheet, counting from 1. Redundant with
+  sd:follows and worth it: it is what makes "the third step" answerable without
+  walking a chain, and what shows a missing step as a gap."""@en .
+
+sd:substrateTemperature a owl:DatatypeProperty ; rdfs:domain sd:GrowthStep ; rdfs:range xsd:decimal ;
+  rdfs:comment """Ts, in DEGREES CELSIUS. The sheets write `Ts 250°C`. It holds
+  until another Ts is written — a step that does not restate it inherits the last
+  one, and that inheritance is stated here rather than left to the reader."""@en .
+
+sd:cellTemperature a owl:DatatypeProperty ; rdfs:domain sd:GrowthStep ; rdfs:range xsd:decimal ;
+  rdfs:comment """The effusion cell's temperature during this step, in DEGREES
+  CELSIUS — the 490 of "GeSe cell / 490°C – 6.0e-9 mbar". Never confuse it with
+  the substrate temperature: they are both °C, both on the same line, and
+  swapping them yields a sheet that reads perfectly and is wrong."""@en .
+
+sd:targetTemperature a owl:DatatypeProperty ; rdfs:domain sd:GrowthStep ; rdfs:range xsd:decimal ;
+  rdfs:comment """Where a ramp, an annealing or a cooling is going, in DEGREES
+  CELSIUS — the 300 of "Annealing 300°C (5°C/min) – 30 min", the 20 of "Cooling
+  – 20°C"."""@en .
+
+sd:rampRate a owl:DatatypeProperty ; rdfs:domain sd:GrowthStep ; rdfs:range xsd:decimal ;
+  rdfs:comment "In DEGREES CELSIUS PER MINUTE — the 5 of \"(5°C/min)\"."@en .
+
+sd:partialPressure a owl:DatatypeProperty ; rdfs:domain sd:GrowthStep ; rdfs:range xsd:decimal ;
+  rdfs:comment """The cell's partial pressure (beam-equivalent) during this
+  step, in MBAR — 6.0e-9, 1.3e-9. With the cell temperature it is what actually
+  sets the flux, and it is the pair the sheets compare from one growth to the
+  next."""@en .
+
+sd:regulationMode a owl:DatatypeProperty ; rdfs:domain sd:GrowthStep ; rdfs:range xsd:string ;
+  rdfs:comment "How the substrate heater was driven — the sheets write \"Reg in auto\", \"manual\"."@en .
+
+sd:regulationSetpoint a owl:DatatypeProperty ; rdfs:domain sd:GrowthStep ; rdfs:range xsd:decimal ;
+  rdfs:comment """Heater power, in PERCENT — the 12.3 of "Reg in auto – 12.3%".
+  A percentage of the supply, not a temperature."""@en .
+
+sd:duration a owl:DatatypeProperty ; rdfs:domain sd:GrowthStep ; rdfs:range xsd:decimal ;
+  rdfs:comment """How long the step lasted. THE UNIT IS NOT IMPLIED — it is
+  carried by sd:durationUnit (§3), because these sheets write minutes and seconds
+  interchangeably and `hold(60)` states neither."""@en .
+
+sd:durationLabel a owl:DatatypeProperty ; rdfs:domain sd:GrowthStep ; rdfs:range xsd:string ;
+  rdfs:comment """The name the sheet gives the duration — T1, T2. Kept because
+  the operator refers back to it, and because it numbers the depositions in an
+  order the reader can check against sd:stepIndex."""@en .
+
+sd:thickness a owl:DatatypeProperty ; rdfs:domain sd:GrowthStep ; rdfs:range xsd:decimal ;
+  rdfs:comment """Layer grown during this step, in MONOLAYERS (ML) — the 3 of
+  "T1 = 29 min – 3 ML". An ESTIMATE from the deposition time and a calibration,
+  not a measurement: it is what the operator expects to have grown, and a
+  characterisation may later disagree with it."""@en .
+
+sd:note a owl:DatatypeProperty ; rdfs:domain sd:GrowthStep ; rdfs:range xsd:string ;
+  rdfs:comment "Whatever the sheet says about this step that no property above holds."@en .
+
+
+sd:RheedObservation a owl:Class ;
+  rdfs:label "RHEED observation" ;
+  rdfs:comment """What the diffraction showed, at one point of one growth. A
+  pivot rather than a quality hung on the sample: the same growth is streaky
+  after the first deposition and spotty after the second, and which one it was
+  is the whole content of the observation."""@en .
+
+sd:observedIn    a owl:ObjectProperty ; rdfs:domain sd:RheedObservation ; rdfs:range sd:Growth .
+sd:atStep        a owl:ObjectProperty ; rdfs:domain sd:RheedObservation ; rdfs:range sd:GrowthStep .
+sd:hasQuality    a owl:ObjectProperty ; rdfs:domain sd:RheedObservation ; rdfs:range sd:RheedQuality .
+sd:observedOn    a owl:ObjectProperty ; rdfs:domain sd:RheedObservation ; rdfs:range sd:Material .
+sd:patternNote a owl:DatatypeProperty ; rdfs:domain sd:RheedObservation ; rdfs:range xsd:string ;
+  rdfs:comment "The description in the operator's words, verbatim — reconstructions of it are worthless."@en .
+
+
+sd:RheedSetting a owl:Class ;
+  rdfs:label "RHEED gun setting" ;
+  rdfs:comment """How the gun was set for a growth. Its own frame because the
+  six numbers are only meaningful together, and because a pattern judged poor
+  under a mis-set gun says nothing about the layer — which is the confusion this
+  class exists to make visible."""@en .
+
+sd:settingFor a owl:ObjectProperty ; rdfs:domain sd:RheedSetting ; rdfs:range sd:Growth .
+
+sd:filamentVoltage a owl:DatatypeProperty ; rdfs:domain sd:RheedSetting ; rdfs:range xsd:decimal ;
+  rdfs:comment "Uf, in VOLTS — \"Uf = 3250 V\"."@en .
+sd:acceleratingVoltage a owl:DatatypeProperty ; rdfs:domain sd:RheedSetting ; rdfs:range xsd:decimal ;
+  rdfs:comment """Ua, in VOLTS — the sheets write it as "-Ua = 60V", the minus
+  belonging to the label. Record the magnitude the sheet states and keep the sign
+  as written in the note rather than negating a number nobody negated."""@en .
+sd:horizontalDeflection a owl:DatatypeProperty ; rdfs:domain sd:RheedSetting ; rdfs:range xsd:decimal ;
+  rdfs:comment "H, in PERCENT — \"H = 39.9%\"."@en .
+sd:verticalDeflection a owl:DatatypeProperty ; rdfs:domain sd:RheedSetting ; rdfs:range xsd:decimal ;
+  rdfs:comment "V, in PERCENT — \"V = -41%\". May be negative; keep the sign."@en .
+sd:beamX a owl:DatatypeProperty ; rdfs:domain sd:RheedSetting ; rdfs:range xsd:decimal ;
+  rdfs:comment "Beam position along X, in the machine's own scale — \"X = 18.6\". Not a length."@en .
+sd:beamY a owl:DatatypeProperty ; rdfs:domain sd:RheedSetting ; rdfs:range xsd:decimal ;
+  rdfs:comment "Beam position along Y, same scale. Often a range on an irregular substrate."@en .
+sd:positionLabel a owl:DatatypeProperty ; rdfs:domain sd:RheedSetting ; rdfs:range xsd:string ;
+  rdfs:comment "The named position the sheet refers to — \"pos2\"."@en .
+sd:settingNote a owl:DatatypeProperty ; rdfs:domain sd:RheedSetting ; rdfs:range xsd:string ;
+  rdfs:comment "Why the setting was changed, in the operator's words."@en .
+
+
+sd:Incident a owl:Class ;
+  rdfs:label "Incident or deviation" ;
+  rdfs:comment """Something the operator noted that was not the plan: a height
+  that had to be changed, an irregular substrate, a cell that would not hold. The
+  most valuable thing on these sheets and the easiest to lose, because it is
+  written in the margin of a step."""@en .
+
+sd:duringGrowth      a owl:ObjectProperty ; rdfs:domain sd:Incident ; rdfs:range sd:Growth .
+sd:atGrowthStep      a owl:ObjectProperty ; rdfs:domain sd:Incident ; rdfs:range sd:GrowthStep .
+sd:concernsSubstrate a owl:ObjectProperty ; rdfs:domain sd:Incident ; rdfs:range sd:Substrate .
+sd:concernsCell      a owl:ObjectProperty ; rdfs:domain sd:Incident ; rdfs:range sd:Cell .
+sd:incidentNote a owl:DatatypeProperty ; rdfs:domain sd:Incident ; rdfs:range xsd:string ;
+  rdfs:comment "What happened, verbatim."@en .
+sd:responseNote a owl:DatatypeProperty ; rdfs:domain sd:Incident ; rdfs:range xsd:string ;
+  rdfs:comment "What the operator did about it, verbatim. Often the only trace of an undocumented practice."@en .
+
+# The one axiom in this file, and it earns its place: an incident is NOT a step.
+# Without it, "had to change the height" is extracted as an operation of the
+# growth, lands in the chronology, and a reader — or a head agent planning a
+# repeat — reproduces the accident as part of the procedure.
+sd:Incident owl:disjointWith sd:GrowthStep .
+
+
+# =============================================================
+# §3  DURATIONS — the one place a unit is a node (R3).
+#     "T1 = 29 min", "stabilization 30min", "hold(60)": the
+#     sheets write minutes, seconds, and nothing at all. The
+#     unit therefore cannot live in the property's definition,
+#     and an unstated one must stay unstated.
+# =============================================================
+
+sd:durationUnit a owl:ObjectProperty ; rdfs:domain sd:GrowthStep ; rdfs:range sd:Unit ;
+  rdfs:comment """The unit of sd:duration. When the sheet does not state it —
+  `hold(60)` — leave this ABSENT. A default of "minutes" would be a measurement
+  nobody made, and it is wrong by a factor of sixty exactly when it matters."""@en .
+
+sd:UnitConversion a owl:Class ;
+  rdfs:label "Unit conversion" ;
+  rdfs:comment """A three-role fact (from, to, factor), hence a pivot. Kept
+  separate so that Unit stays a LEAF: were Unit itself the domain of these
+  properties, the extractor would offer the model a "Unit frame" to fill instead
+  of simply naming the unit."""@en .
+
+sd:convertsFrom     a owl:ObjectProperty ; rdfs:domain sd:UnitConversion ; rdfs:range sd:Unit .
+sd:convertsTo       a owl:ObjectProperty ; rdfs:domain sd:UnitConversion ; rdfs:range sd:Unit .
+sd:conversionFactor a owl:DatatypeProperty ; rdfs:domain sd:UnitConversion .
+
+
+# =============================================================
+# §4  THE ONLY INSTANCES IN THIS FILE
+#     One enumeration, because the machinery reads it: a step
+#     of unknown kind cannot be found by "every annealing of
+#     every GeSe growth", which is the question this pack
+#     exists for. Everything else — materials, cells,
+#     substrates, operators, RHEED qualities — is LEARNED.
+# =============================================================
+
+sd:StepKind a owl:Class ;
+  rdfs:label "Kind of step" ;
+  rdfs:comment "Closed on purpose. A step that fits none of these takes sd:Other and keeps its note."@en .
+
+sd:PreGrowth a sd:StepKind ;
+  skos:prefLabel "pre-growth"@en ;
+  rdfs:comment "Chamber and substrate brought to their starting state; where the base pressure is read."@en .
+
+sd:PowerRamp a sd:StepKind ;
+  skos:prefLabel "power ramp"@en ;
+  rdfs:comment """Heater power driven to a percentage over a time — power_ramp("Substrate", 38, 30). Drives POWER, not temperature: the resulting Ts is not stated and must not be inferred."""@en .
+
+sd:TemperatureRamp a sd:StepKind ;
+  skos:prefLabel "temperature ramp"@en ;
+  rdfs:comment "Substrate driven to a target temperature — temperature_ramp(\"Substrate\", 250, 10)."@en .
+
+sd:Hold a sd:StepKind ;
+  skos:prefLabel "hold"@en ;
+  rdfs:comment "Wait at the current state — hold(60). Its unit is usually unstated; see §3."@en .
+
+sd:Stabilization a sd:StepKind ;
+  skos:prefLabel "stabilization"@en ;
+  rdfs:comment "Waiting for a regulation to settle before opening a shutter."@en .
+
+sd:Deposition a sd:StepKind ;
+  skos:prefLabel "deposition"@en ;
+  rdfs:comment "A shutter open: the step that grows material. Carries cell, temperature, pressure, duration and thickness."@en .
+
+sd:Annealing a sd:StepKind ;
+  skos:prefLabel "annealing"@en ;
+  skos:altLabel "HT"@en ;
+  skos:altLabel "heat treatment"@en ;
+  rdfs:comment """The sheets' HT: a target temperature, a ramp rate and a hold —
+  "Annealing 300°C (5°C/min) – 30 min". Distinct from a temperature ramp: the
+  ramp gets somewhere, the annealing STAYS there, and the duration means two
+  different things in the two cases."""@en .
+
+sd:Cooling a sd:StepKind ;
+  skos:prefLabel "cooling"@en ;
+  rdfs:comment "Down to a target, at a rate — \"Cooling – 20°C (10°C/min)\"."@en .
+
+sd:Observation a sd:StepKind ;
+  skos:prefLabel "observation"@en ;
+  rdfs:comment "A measurement made in place: a RHEED reading, a gun adjustment. Grows nothing."@en .
+
+sd:Other a sd:StepKind ;
+  skos:prefLabel "other"@en ;
+  rdfs:comment """A step none of the above describes. Exists so that an unusual
+  step is RECORDED with its note rather than forced into the nearest kind — a
+  misfiled step is worse than an unfiled one, because it answers a query."""@en .

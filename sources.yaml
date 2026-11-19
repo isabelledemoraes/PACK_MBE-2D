@@ -1,0 +1,76 @@
+# What this pack learns from — a DIRECTORY OF SAMPLE SHEETS, not a website.
+#
+# Read by `learn.sh` / `pack_kit.learn`. Nothing else reads it.
+#
+# There is one source and it uses a `fetcher:` rather than a URL, because the
+# sheets are Word documents on a local disk: read as bytes a `.doc` is binary,
+# and its header is a table that flattens into unlabelled cells. The fetcher
+# converts, puts the labels back on the values, and skips a sheet that has not
+# changed since the last run — see fetchers/sample_doc_fetcher.py, which says
+# why each of those three is not optional.
+#
+# TO POINT THIS AT ANOTHER DIRECTORY, edit `directory:` below and nothing else.
+# The path is an argument on purpose: baking it into the fetcher would mean
+# editing Python to ingest a second campaign.
+
+content_limit: 20000        # one sheet is ~1.5 KB; nothing here will be chunked
+
+sources:
+
+  - id: mbe-sample-sheets
+    fetcher: "{here}/fetchers/sample_doc_fetcher.py::fetch_sample_docs"
+    fetcher_args:
+      directory: C:\Users\ig269202\Sample_doc_MBE\sample_doc_mbe\Sample_doc_files
+      recursive: true
+      detect_changes: true
+    fetcher_env:
+      SAMPLE_DOC_HASH_FILE: "{here}/memory/sample_doc_hashes.json"
+    about: >-
+      The laboratory's MBE growth sheets, one Word document per sample. Each
+      carries a header (description of the stack, sample number, date,
+      substrate, substrate size, molyblock, operator) and then the growth
+      itself in free text, written in the order it happened.
+    learn: |
+      Extract WHAT THIS RUN DID, sample by sample. Never generalise across
+      sheets: two growths that share a cell temperature are two facts, not a
+      rule, and this pack answers "what was done on 1-0764", not "what should
+      be done".
+
+      From the header, one Growth: the sample number exactly as written
+      (1-0764), the stack description verbatim with its slashes, the date, the
+      substrate, the substrate size in mm, the molyblock and the operator.
+
+      From the body, the steps IN ORDER. The lines are chronological and carry
+      no timestamps, so number them from 1 and say which follows which. A step
+      may span several consecutive lines: a cell named on one line, its
+      temperature and pressure on the next, its duration and thickness on the
+      third, are ONE deposition — extract them as one situation, never as three
+      facts about three different things.
+
+      For each step, whichever of these the sheet states, with the units of the
+      ontology: kind of step (pre-growth, power ramp, temperature ramp, hold,
+      stabilization, deposition, annealing, cooling, observation), substrate
+      temperature Ts in °C, the cell used and its temperature in °C, its
+      partial pressure in mbar, the regulation mode and its setpoint in %, the
+      target temperature and ramp rate of an annealing or a cooling, the
+      duration WITH the unit the sheet wrote (minutes, seconds, or none — do
+      not supply one), its label (T1, T2), and the thickness in ML.
+
+      Keep every control command verbatim, arguments included:
+      power_ramp("Substrate", 38, 30), hold(60), temperature_ramp(...).
+
+      Record RHEED twice over, and keep the two apart: what the pattern LOOKED
+      like and at which step ("RHEED good" after the first deposition), and how
+      the gun was SET (Uf in V, Ua in V, H in %, V in %, X and Y positions,
+      the named position). A pattern judged under a gun that had to be re-set
+      says as much about the gun as about the layer.
+
+      Record what went wrong or was changed on the fly — "had to change the
+      height, the ZnO is a bit irregular" — as an incident, with the operator's
+      own words and what they did about it. It is the most valuable line on a
+      sheet and it is written in the margin of a step.
+
+      Ignore nothing as boilerplate: these sheets have none. If a line is
+      unclear, record it verbatim as a note rather than dropping it — an
+      operator's shorthand that nobody has decoded yet is still a fact about
+      this growth.
