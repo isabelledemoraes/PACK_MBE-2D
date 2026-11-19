@@ -14,7 +14,8 @@
 # TO POINT THIS AT ANOTHER DIRECTORY, edit `directory:` below and nothing else.
 #
 # The `learn:` text below, the comment of sd:StepKind in the schema and the
-# individuals of its §5 carry the SAME list of step kinds. Change one, change
+# individuals of its §5 carry the SAME list of step kinds (and likewise the
+# three kinds of source: effusion cell, electron gun, other source). Change one, change
 # the three. extraction_guide.md (the operators' shorthand, and what must never
 # be done to a value) is read alongside `learn:` on every sheet.
 
@@ -72,7 +73,11 @@ sources:
       THE SOURCES OF EACH STEP, ONE BY ONE. A step often runs several sources
       at once (two cells, a cell and an electron gun, two guns). For EACH
       source of EACH step, say separately: which device it is, with its number
-      ("Se cell 1", "E-gun 1", "EBE 2"); what material it delivers; for an
+      ("Se cell 1", "E-gun 1", "EBE 2"); WHETHER IT IS AN EFFUSION CELL OR AN
+      ELECTRON GUN, in those words, every time (a cell is set by a temperature
+      and read as a pressure; an electron gun — e-gun, EBE, canon — is set by a
+      power with If, Ie and HV and read on a quartz in xtc); what material it
+      delivers; for an
       electron gun, the position of the charge ("position 2"), its power in %,
       If (filament current), Ie (emission current) and HV / HT (high voltage)
       WITH THE UNITS WRITTEN, and whether the rate is in manual or auto; for a
