@@ -2,5 +2,9 @@
 memory/
 knowledge/
 sandbox/
+# The pictures the fetcher takes out of the sheets: rebuilt by every `learn`,
+# and far too heavy for git (a sheet full of RHEED patterns is ~2 MB).
+data/images/
+__pycache__/
 # Its environment, rebuilt by `uv sync` from pyproject.toml.
 .venv/

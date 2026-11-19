@@ -3,17 +3,22 @@
 # Read by `learn.sh` / `pack_kit.learn`. Nothing else reads it.
 #
 # There is one source and it uses a `fetcher:` rather than a URL, because the
-# sheets are Word documents on a local disk: read as bytes a `.doc` is binary,
-# and its header is a table that flattens into unlabelled cells. The fetcher
-# converts, puts the labels back on the values, and skips a sheet that has not
-# changed since the last run — see fetchers/sample_doc_fetcher.py, which says
-# why each of those three is not optional.
+# sheets are Word documents on a local disk. The fetcher does what a language
+# model cannot: it converts the file, REMOVES the template values still
+# highlighted in yellow (never filled in by the operator), saves the embedded
+# pictures under `image_dir` and leaves an `[IMAGE: <path>]` marker where each
+# one stood, puts the labels back on the header table, and skips a sheet that
+# has not changed since the last run. It does NOT read the notes: they are free
+# text, and reading them is what `learn:` below and ontology/schema.ttl are for.
 #
 # TO POINT THIS AT ANOTHER DIRECTORY, edit `directory:` below and nothing else.
-# The path is an argument on purpose: baking it into the fetcher would mean
-# editing Python to ingest a second campaign.
+#
+# The `learn:` text below, the comment of sd:StepKind in the schema and the
+# individuals of its §5 carry the SAME list of step kinds. Change one, change
+# the three. extraction_guide.md (the operators' shorthand, and what must never
+# be done to a value) is read alongside `learn:` on every sheet.
 
-content_limit: 20000        # one sheet is ~1.5 KB; nothing here will be chunked
+content_limit: 20000        # a sheet is 1 to 8 KB; nothing here will be chunked
 
 sources:
 
@@ -21,56 +26,92 @@ sources:
     fetcher: "{here}/fetchers/sample_doc_fetcher.py::fetch_sample_docs"
     fetcher_args:
       directory: C:\Users\ig269202\Sample_doc_MBE\sample_doc_mbe\Sample_doc_files
+      image_dir: "{here}/data/images"
       recursive: true
       detect_changes: true
     fetcher_env:
       SAMPLE_DOC_HASH_FILE: "{here}/memory/sample_doc_hashes.json"
     about: >-
-      The laboratory's MBE growth sheets, one Word document per sample. Each
-      carries a header (description of the stack, sample number, date,
-      substrate, substrate size, molyblock, operator) and then the growth
-      itself in free text, written in the order it happened.
+      The laboratory's MBE growth sheets (lab notebooks), one Word document per
+      sample. Each opens with a header (sample number, description of the stack,
+      date, substrate, substrate size, molyblock, operators) followed by the
+      operator's free notes on the growth, in the order things were done:
+      substrate and source preparation, depositions from effusion cells and
+      electron guns, annealings, RHEED observations and pictures, transfers to
+      other chambers, incidents.
     learn: |
-      Extract WHAT THIS RUN DID, sample by sample. Never generalise across
-      sheets: two growths that share a cell temperature are two facts, not a
-      rule, and this pack answers "what was done on 1-0764", not "what should
-      be done".
+      Give a faithful, COMPLETE account of what this run did, in the order of
+      the sheet. Never generalise across sheets, never judge, never complete:
+      this pack answers "what was done on 1-0812", not "what should be done".
+      The notes are free text, in English or French, written differently by
+      each operator; read them for what they mean, not for their layout.
 
-      From the header, one Growth: the sample number exactly as written
-      (1-0764), the stack description verbatim with its slashes, the date, the
-      substrate, the substrate size in mm, the molyblock and the operator.
+      THE GROWTH. From the header lines: the sample number exactly as written,
+      the stack description verbatim with its slashes, the date as written, the
+      substrate and its reference (batch, supplier), its size in mm, the
+      molyblock, and EVERY operator. A header field reported as "not filled in"
+      is unknown: do not supply it.
 
-      From the body, the steps IN ORDER. The lines are chronological and carry
-      no timestamps, so number them from 1 and say which follows which. A step
-      may span several consecutive lines: a cell named on one line, its
-      temperature and pressure on the next, its duration and thickness on the
-      third, are ONE deposition — extract them as one situation, never as three
-      facts about three different things.
+      THE STEPS, IN ORDER. Number them from 1. One step is one operation on the
+      sample, even written over several lines or under one title ("Growth 2",
+      "Annealing", "Cooling down"): keep that title. Give each step its kind,
+      one of: pre-growth, substrate preparation, degassing, surface cleaning,
+      source preparation, power ramp, temperature ramp, hold, stabilization,
+      deposition, capping, annealing, cooling, transfer, observation, other.
+      For each step, whatever the sheet states: the material being grown; the
+      SAMPLE temperature in °C (and the final or maximum one when written,
+      "T=980°C>995°C", "T_max=967°C"); the target temperature and the rate of a
+      ramp; the substrate HEATER power in % and its ramp rate in %/s; manual or
+      auto regulation; the manipulator position; the chamber or machine; the
+      clock time or chrono as written ("7h15", "25min55"); the duration with
+      the unit as written ("21 mn 5 s" — never converted); the thickness
+      WANTED ("1.1 MLs", "aim 3L", "15 nm") and the thickness the operator
+      reckons was grown, each with its unit. Keep every control command
+      verbatim: power_ramp("Substrate", 38, 30), hold(60).
 
-      For each step, whichever of these the sheet states, with the units of the
-      ontology: kind of step (pre-growth, power ramp, temperature ramp, hold,
-      stabilization, deposition, annealing, cooling, observation), substrate
-      temperature Ts in °C, the cell used and its temperature in °C, its
-      partial pressure in mbar, the regulation mode and its setpoint in %, the
-      target temperature and ramp rate of an annealing or a cooling, the
-      duration WITH the unit the sheet wrote (minutes, seconds, or none — do
-      not supply one), its label (T1, T2), and the thickness in ML.
+      THE SOURCES OF EACH STEP, ONE BY ONE. A step often runs several sources
+      at once (two cells, a cell and an electron gun, two guns). For EACH
+      source of EACH step, say separately: which device it is, with its number
+      ("Se cell 1", "E-gun 1", "EBE 2"); what material it delivers; for an
+      electron gun, the position of the charge ("position 2"), its power in %,
+      If (filament current), Ie (emission current) and HV / HT (high voltage)
+      WITH THE UNITS WRITTEN, and whether the rate is in manual or auto; for a
+      cell, its temperature in °C and its beam pressure in mbar; the quartz
+      readings — rate (Vxtc / vxtc) and amount (xtc) — and the density setting
+      ("d/40") verbatim; any rate in a physical unit ("0.82 nm/min"); when its
+      shutter was opened and closed. Never attach a cell's temperature or
+      pressure, or a gun's power, to the sample.
+      "P" means three things on these sheets: the substrate heater power (%),
+      the power of an electron gun (%, next to If / Ie / HV), or a pressure
+      (mbar). Say which each time.
 
-      Keep every control command verbatim, arguments included:
-      power_ramp("Substrate", 38, 30), hold(60), temperature_ramp(...).
+      CALIBRATIONS. When the sheet states what a reading is worth — "1ML
+      should be approximately 442/2 = 167 xtc (1-0607)", "1-0781: 401xtc/ML" —
+      report the statement VERBATIM, the material it is for, and the earlier
+      sample it refers to. Never redo or correct its arithmetic.
 
-      Record RHEED twice over, and keep the two apart: what the pattern LOOKED
-      like and at which step ("RHEED good" after the first deposition), and how
-      the gun was SET (Uf in V, Ua in V, H in %, V in %, X and Y positions,
-      the named position). A pattern judged under a gun that had to be re-set
-      says as much about the gun as about the layer.
+      RHEED, twice over, and keep the two apart. What the pattern LOOKED like,
+      at which step or time, at which azimuth, in the operator's words ("dots →
+      rods", "Surface is more 3D", "Good rheed"). And how the gun was SET, one
+      line of values at a time: Uf, Ua, the kV, H, V, theta, X, Y, the named
+      position.
 
-      Record what went wrong or was changed on the fly — "had to change the
-      height, the ZnO is a bit irregular" — as an incident, with the operator's
-      own words and what they did about it. It is the most valuable line on a
-      sheet and it is written in the margin of a step.
+      PICTURES AND FILES. Keep every marker [IMAGE: ...] and every file name
+      ("r2-0356_01.tif", "05.tif") EXACTLY as written, with the step or
+      observation it stands next to and its azimuth. Do not describe a picture
+      and do not guess which marker is which named file.
 
-      Ignore nothing as boilerplate: these sheets have none. If a line is
-      unclear, record it verbatim as a note rather than dropping it — an
-      operator's shorthand that nobody has decoded yet is still a fact about
-      this growth.
+      OTHER MEASUREMENTS. XPS or any other characterisation: what was measured,
+      after which step, in which chamber, and the result verbatim ("x=0.18").
+
+      INCIDENTS. What went wrong or was changed on the fly — "Flux goes
+      negative! Increase power to 16.30% after 60xtc", "Se flake on the cell is
+      blocking the flux" — in the operator's own words, with what they did
+      about it and the step it happened at. It is the most valuable line on a
+      sheet and it is written in the margin.
+
+      COMMENTS. These sheets have no boilerplate. Every remark attached to a
+      value or an action is kept, verbatim, with the step or the source it is
+      attached to. If a line is unclear, report it verbatim as a note on its
+      step rather than dropping it: an operator's shorthand nobody has decoded
+      yet is still a fact about this growth.
