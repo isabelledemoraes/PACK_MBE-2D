@@ -109,6 +109,19 @@
 #      power and quartz reading. One source is one usage — the
 #      same shape, so that a query never has two places to look.
 #
+#  R6. EVERY PIVOT IS LINKED FROM ABOVE AND FROM BELOW.
+#      The extractor builds a sheet TOP-DOWN: a Growth, its
+#      steps, what each step holds. A pivot that can only point
+#      UP to its parent (usedInStep) is attached only when the
+#      model thinks of it, and it does not: on the first two
+#      sheets ingested with a one-way link, two sources out of
+#      three hung from nothing — a block of literals belonging
+#      to no step and no growth — and one sheet lost its cell
+#      altogether. So each child pivot has BOTH roles: the
+#      parent names it (hasStep, hasSource, hasIncident,
+#      hasCalibration, hasRheedSetting, hasCharacterization,
+#      hasPeak) and it names its parent. Either one attaches it.
+#
 #  ---------------------------------------------------------
 #  TO CONFIRM WITH THE LABORATORY (kept out of the comments the
 #  model reads):
@@ -129,7 +142,7 @@
 @prefix skos: <http://www.w3.org/2004/02/skos/core#> .
 
 <https://example.org/onto/pack/sample_doc> a owl:Ontology ;
-  owl:versionInfo "0.2" ;
+  owl:versionInfo "0.3" ;
   rdfs:label "Sample growth logs pack — domain schema" ;
   rdfs:comment """Deliberately axiom-poor: no cardinality, and a single
   disjointness (§2) which exists to stop one recurring confusion rather than to
@@ -185,8 +198,9 @@ sd:EffusionCell a owl:Class ; rdfs:subClassOf sd:Source ;
   rdfs:comment """A heated cell, named as written WITH its number when it has
   one (French: cellule). Such as "Se cell 1", "Cell 2", "GeSe cell", "Te
   cell". Includes cracker and valved cells, which the sheets recognise by
-  several temperatures on one line ("Te 335/500/1000°C"). It is driven by a
-  TEMPERATURE and read as a PRESSURE."""@en .
+  several temperatures on one line ("Te 335/500/1000°C"). It is given by
+  a TEMPERATURE in °C, sometimes followed by its power in %, and read as a
+  PRESSURE."""@en .
 
 sd:ElectronGun a owl:Class ; rdfs:subClassOf sd:Source ;
   rdfs:label "Electron gun" ;
@@ -248,7 +262,7 @@ sd:StepKind a owl:Class ;
 #     Immutable. Never consolidated, never edited.
 sd:Artifact a owl:Class ;
   rdfs:label "Literal artifact" ;
-  rdfs:comment "Content kept character for character. ABSTRACT: name a Machine control command or an Image or data file."@en .
+  rdfs:comment "A command or a file, kept character for character. ABSTRACT, and never the type of a plain value such as a number or a word."@en .
 
 sd:Command a owl:Class ; rdfs:subClassOf sd:Artifact ;
   rdfs:label "Machine control command" ;
@@ -284,6 +298,10 @@ sd:grewStack       a owl:ObjectProperty ; rdfs:domain sd:Growth ; rdfs:range sd:
 sd:onSubstrate     a owl:ObjectProperty ; rdfs:domain sd:Growth ; rdfs:range sd:Substrate .
 sd:mountedOn       a owl:ObjectProperty ; rdfs:domain sd:Growth ; rdfs:range sd:Molyblock .
 sd:hasStep         a owl:ObjectProperty ; rdfs:domain sd:Growth ; rdfs:range sd:GrowthStep .
+sd:hasIncident     a owl:ObjectProperty ; rdfs:domain sd:Growth ; rdfs:range sd:Incident .
+sd:hasCalibration  a owl:ObjectProperty ; rdfs:domain sd:Growth ; rdfs:range sd:Calibration .
+sd:hasRheedSetting a owl:ObjectProperty ; rdfs:domain sd:Growth ; rdfs:range sd:RheedSetting .
+sd:hasCharacterization a owl:ObjectProperty ; rdfs:domain sd:Growth ; rdfs:range sd:Characterization .
 
 sd:performedBy a owl:ObjectProperty ; rdfs:domain sd:Growth ; rdfs:range sd:Operator ;
   rdfs:comment "Repeat once per operator when the header names several."@en .
@@ -320,12 +338,20 @@ sd:GrowthStep a owl:Class ;
   power, how long, how thick. What concerns a SOURCE during the step is a
   Source in use, one per source. A step is often written over several
   consecutive lines: that is still ONE step. A block titled "Growth 2" or
-  "Annealing" is one step even if it holds several numbers."""@en .
+  "Annealing" is one step even if it holds several numbers. Whenever a cell
+  or a gun is mentioned for the step, the step MUST have one hasSource per
+  source."""@en .
 
 sd:partOfGrowth    a owl:ObjectProperty ; rdfs:domain sd:GrowthStep ; rdfs:range sd:Growth .
 sd:hasKind         a owl:ObjectProperty ; rdfs:domain sd:GrowthStep ; rdfs:range sd:StepKind .
 sd:hasCommand      a owl:ObjectProperty ; rdfs:domain sd:GrowthStep ; rdfs:range sd:Command .
 sd:observedRheed   a owl:ObjectProperty ; rdfs:domain sd:GrowthStep ; rdfs:range sd:RheedObservation .
+
+sd:hasSource a owl:ObjectProperty ; rdfs:domain sd:GrowthStep ; rdfs:range sd:SourceUsage ;
+  rdfs:comment """One per cell or gun run during the step: "SnSe cell / 490°C –
+  6.0e-9 mbar" gives one, a co-evaporation of Ge, Te and Fe gives three. The
+  temperature, pressure and power of a source are roles of that Source in use,
+  never of the step."""@en .
 
 sd:depositsMaterial a owl:ObjectProperty ; rdfs:domain sd:GrowthStep ; rdfs:range sd:Material ;
   rdfs:comment """The material the step GROWS on the sample — WSe2, NbSe2, CSF —
@@ -378,7 +404,7 @@ sd:heaterPower a owl:DatatypeProperty ; rdfs:domain sd:GrowthStep ; rdfs:range x
   "Pcell = 47.2 %" under Substrate parameters, "Sample T = 350°C (12.5% ...)",
   "Increase power to 47.5%". A percentage of the supply, not a temperature.
   The sheets write "P" for three things: THIS, the power of an electron gun
-  (gunPower, next to If / Ie / HV) and a pressure (in mbar, e-9). The unit and
+  (sourcePower, next to If / Ie / HV or after a cell temperature) and a pressure (in mbar, e-9). The unit and
   the neighbours tell them apart."""@en .
 
 sd:powerRampRate a owl:DatatypeProperty ; rdfs:domain sd:GrowthStep ; rdfs:range xsd:decimal ;
@@ -427,15 +453,16 @@ sd:SourceUsage a owl:Class ;
   rdfs:comment """One source as it was run during one step, with its own
   settings and readings. Emit ONE per source and per step: a co-evaporation
   from an electron gun and a cell is two of them on the same step, and a single
-  cell is still one. Leave it WITHOUT a label. It is where every cell
-  temperature, beam pressure, gun power, current, shutter time and quartz (xtc)
-  reading goes — never on the step itself."""@en .
+  cell is still one. Leave it WITHOUT a label. It ties together the device
+  (usesSource), its material (suppliesMaterial), the step (usedInStep) and the
+  values read on it: cell temperature, beam pressure, power, currents, shutter
+  times, quartz (xtc) readings. The step names it with hasSource."""@en .
 
 sd:usedInStep a owl:ObjectProperty ; rdfs:domain sd:SourceUsage ; rdfs:range sd:GrowthStep ;
-  rdfs:comment "The step during which the source was run. Always give it: it is what keeps two growths that used the same cell at the same temperature apart."@en .
+  rdfs:comment "The step during which the source was run — the same step that names this Source in use with hasSource. Always give it."@en .
 
 sd:usesSource a owl:ObjectProperty ; rdfs:domain sd:SourceUsage ; rdfs:range sd:Source ;
-  rdfs:comment "The device: \"E-gun 1\", \"Se cell 1\", \"EBE 2\". When the sheet names only the material (\"Bi T = 494°C\"), name the source after it: \"Bi cell\"."@en .
+  rdfs:comment """The device, ALWAYS given: "E-gun 1", "Se cell 1", "SnSe cell", "EBE 2". When the sheet names only the material with a temperature ("Bi T = 494°C", "Ge 1098°C 65.2%"), it is an Effusion cell named after it: "Bi cell", "Ge cell"."""@en .
 
 sd:suppliesMaterial a owl:ObjectProperty ; rdfs:domain sd:SourceUsage ; rdfs:range sd:Material ;
   rdfs:comment "What the source delivers — its charge: the W of \"W : E-gun 1, position 2\", the Se of \"Se cell 1\". An element or a compound."@en .
@@ -456,10 +483,12 @@ sd:beamPressure a owl:DatatypeProperty ; rdfs:domain sd:SourceUsage ; rdfs:range
   ("1.5e-9/9.8e-8, dP=9.6 e-8"), the beam pressure is dP; put the whole line in
   sourceNote."""@en .
 
-sd:gunPower a owl:DatatypeProperty ; rdfs:domain sd:SourceUsage ; rdfs:range xsd:decimal ;
-  rdfs:comment """Power of an ELECTRON GUN, in PERCENT — the "P = 16,15 %" that
-  stands next to If, Ie and HV. Not the substrate heater power (heaterPower),
-  which the sheets also write "P"."""@en .
+sd:sourcePower a owl:DatatypeProperty ; rdfs:domain sd:SourceUsage ; rdfs:range xsd:decimal ;
+  rdfs:comment """Power fed to THIS SOURCE, in PERCENT. For an electron gun,
+  the "P = 16,15 %" that stands next to If, Ie and HV. For a cell, the
+  percentage written after its temperature: the 65.2 of "Ge 1098°C 65.2%". A
+  percentage alone does not make a source an electron gun. Not the substrate
+  heater power (heaterPower), which the sheets also write "P"."""@en .
 
 sd:emissionCurrent a owl:DatatypeProperty ; rdfs:domain sd:SourceUsage ; rdfs:range xsd:decimal ;
   rdfs:comment "Ie, emission current of an electron gun, in MILLIAMPERES — \"Ie ~ 79mA\". Number as written; if the sheet writes another unit, keep that unit with the number."@en .
@@ -682,6 +711,7 @@ sd:RamanPeak a owl:Class ;
   text that gives peak positions in cm-1; a growth sheet never does."""@en .
 
 sd:ofCharacterization a owl:ObjectProperty ; rdfs:domain sd:RamanPeak ; rdfs:range sd:Characterization .
+sd:hasPeak a owl:ObjectProperty ; rdfs:domain sd:Characterization ; rdfs:range sd:RamanPeak .
 sd:peakPosition a owl:DatatypeProperty ; rdfs:domain sd:RamanPeak ; rdfs:range xsd:decimal ;
   rdfs:comment "Centre of the peak (Raman shift), in CM-1."@en .
 sd:peakWidth a owl:DatatypeProperty ; rdfs:domain sd:RamanPeak ; rdfs:range xsd:decimal ;

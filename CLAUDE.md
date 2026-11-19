@@ -39,7 +39,8 @@ The data flow: `sources.yaml` → fetcher → `pack_kit.learn` → LLM extractio
   - A class that is the `rdfs:domain` of a property is a pivot/frame (`Growth`, `GrowthStep`, `SourceUsage`, `Calibration`, `RheedObservation`, `RheedSetting`, `Incident`, `Characterization`, `RamanPeak`); others are leaves. Only the first `rdfs:domain` is read — a property shared by several frames needs an `owl:unionOf` domain.
   - The filter sees one line per class: label + **first sentence** of its comment (cut at the first `". "`, 150 chars), the whole digest cut at **3500 chars**. Keep first sentences short and self-sufficient.
   - The extractor sees every class/property with its full `rdfs:comment`; properties are offered under their **local name**, classes under their `rdfs:label`. `#` comments, `skos:altLabel` and **individuals are invisible** to both calls — so the closed `StepKind` list is spelled out in the class comment and in `learn:` (keep the three in sync), and synonyms go into comments.
-  - A step carries no source parameter: each source open during a step is one `SourceUsage` (co-evaporation = several). Units live on the property where the sheets agree (°C, mbar, %); durations, thicknesses and rates are strings "as written". Nothing is converted or recomputed.
+  - A step carries no source parameter: each source open during a step is one `SourceUsage` (co-evaporation = several).
+  - **Every child pivot is linked both ways** (`hasStep`/`partOfGrowth`, `hasSource`/`usedInStep`, …). The extractor builds top-down; a child that can only point up to its parent ends up detached (seen on real sheets: sources floating with their literals, attached to no step). Units live on the property where the sheets agree (°C, mbar, %); durations, thicknesses and rates are strings "as written". Nothing is converted or recomputed.
   - It is **descriptive only by design** (no Recipe/Prescription classes).
 - **`MEMORY_TRIPLET_MODE: nary`** must stay identical across all configs; changing it requires re-ingesting everything (delete `memory/*.db` and re-run learn).
 - **`config.yaml`** = user agent: read-only by construction (`query_memory` only, no web, no ingest). This is a structural security property, not a setting to relax. Only `config.yaml` is loaded by `use_pack`. Memory tools are loaded via `file: "{module:memory_tools}"`, not `module:` — `file:` gives each pack its own module instance so env (`MEMORY_DB` etc.) isn't shared across packs.
@@ -49,7 +50,7 @@ The data flow: `sources.yaml` → fetcher → `pack_kit.learn` → LLM extractio
 
 ## Conventions
 
-- Never hand-edit `memory/` (gitignored, rebuilt by learn). `sandbox/` is the agent's write area; `knowledge/` and `.venv/` are also gitignored.
+- Never hand-edit `memory/` (gitignored, rebuilt by learn). To rebuild after a schema change, delete the whole `memory/` directory, not only the `.db`: `memory/sample_doc_hashes.json` is the fetcher's change-detection state, and with it left in place every sheet is reported unchanged and skipped. `sandbox/` is the agent's write area; `knowledge/` and `.venv/` are also gitignored.
 - The first paragraph of `prompts/lead.md` is the pack's description everywhere (including other agents' delegation docstrings) — write it as *when to call this pack*.
 - Re-ingesting a source replaces what it previously taught (idempotent). Ingest via the serve UI's "Ingest" box is lost on rebuild.
 - When checking a learn run, trust the row/triplet count it prints, not the ✅ ticks (tools return failures as text); `dead_letters = 0` with 0 triplets means nothing was learned.

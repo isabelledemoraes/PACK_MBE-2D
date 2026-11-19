@@ -76,11 +76,14 @@ sources:
       electron gun, the position of the charge ("position 2"), its power in %,
       If (filament current), Ie (emission current) and HV / HT (high voltage)
       WITH THE UNITS WRITTEN, and whether the rate is in manual or auto; for a
-      cell, its temperature in °C and its beam pressure in mbar; the quartz
+      cell, its temperature in °C, its power in % when one is written after
+      the temperature, and its beam pressure in mbar; the quartz
       readings — rate (Vxtc / vxtc) and amount (xtc) — and the density setting
       ("d/40") verbatim; any rate in a physical unit ("0.82 nm/min"); when its
-      shutter was opened and closed. Never attach a cell's temperature or
-      pressure, or a gun's power, to the sample.
+      shutter was opened and closed. Name the step every time ("During step
+      3, the Ge cell was at 1098°C"): a source reported without its step
+      belongs to nothing. Never attach a cell's temperature or pressure, or a
+      gun's power, to the sample.
       "P" means three things on these sheets: the substrate heater power (%),
       the power of an electron gun (%, next to If / Ie / HV), or a pressure
       (mbar). Say which each time.
