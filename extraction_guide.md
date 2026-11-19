@@ -10,12 +10,18 @@ SHORTHAND USED BY THE OPERATORS
   ("335/500/1000°C") are the zones of one cell.
 - P followed by %: a POWER. Of the substrate heater when it stands with the
   sample temperature ("set P = 35%", "Pcell = 47.2 %" under Substrate
-  parameters); of an electron gun when it stands with If, Ie, HV.
+  parameters); of an electron gun when it stands with If, Ie, HV; of a cell
+  when it follows that cell's temperature ("Ge 1098°C 65.2%").
 - P followed by mbar or a power of ten (P_Se, PSe, Pch, "1.5e-9/9.8e-8"): a
   PRESSURE. dP is the beam pressure of a cell (reading minus background). Pch is
   the chamber base pressure.
-- E-gun, EBE, e-beam, canon: an electron gun that evaporates material. "W :
+- E-gun, EBE, e-beam, canon: an ELECTRON GUN that evaporates material. "W :
   E-gun 1, position 2" = gun number 1, charge at position 2, material W.
+- Cell, cellule, or a material followed by a temperature: an EFFUSION CELL.
+  The two are different devices and are never interchangeable: always write
+  "effusion cell" or "electron gun" in full when reporting a source. xtc, Vxtc,
+  Ie, If, HV belong to an electron gun only; a temperature and a beam pressure
+  belong to an effusion cell only.
 - If, Ifilament: filament current. Ie: emission current. HV, HT followed by kV:
   high voltage of an electron gun. (HT followed by a temperature is a heat
   treatment, an annealing.)
